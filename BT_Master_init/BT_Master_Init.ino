@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 
 // Board connections
+// GND -> GND, 5V -> 5V
 // RX (HC-05) -> Pin11
 // TX (HC-05) -> Pin10
 // En (HC-05) -> Pin9
@@ -24,9 +25,9 @@ AT Command procedure:
  - AT+CMODE=1         (connect to any device, set to 0 for fixed addr)
  - AT+ADCN?           (display device count)
  - AT+STATE?          (determine module working state)
- - AT+INQ             (inquire for nearby bluetooth devices)
+ - AT+INQ             (inquire for nearby bluetooth devices) (format of address is described below in RNAME command) 
  - AT+INQC            (cancel inquiry if needed)
- - AT+RNAME?<addr>    (check name of BT device)
+ - AT+RNAME?<addr>    (check name of BT device) (if the BT address is AA:BB:CC:DD:EE:FF, syntax for addr is <AABB,CC,DDEEFF>)
  - AT+BIND=<addr>     (bind to bluetooth address)
  - AT+PAIR=<addr>     (pair to address)
  - AT+LINK=<addr>     (link to device)
@@ -68,35 +69,41 @@ void BTMasterSetup(){
 
   String read_resp = "";
   
-  String Startup_Full_Reset[] = {"AT","AT+ORGL","AT+NAME=MIST_BT_MASTER_1","AT+RMAAD","AT+CLASS=0","AT+ROLE=1"
+  String Startup_Full_Reset[] = {"AT","AT+ORGL","AT+NAME=MIST_BT_MASTER_1","AT+RMAAD","AT+CLASS=0","AT+ROLE=1",
                                  "AT+RESET","AT+INIT","AT+INQM=1,20,48"};
   Serial.println("Starting initialization");
-  
-  while(num_cmds_received != NUM_START_CMDS){
-    if(Serial.available() && !cmd_sent){
-      BT_Master.println(Startup_Full_Reset[num_cmds_received]);
+
+  int i = 0; // TODO: Remove - purely for debugging
+  while(num_cmds_received <= NUM_START_CMDS){
+    if(!cmd_sent){    // If no commands have been sent out yet, try sending a cmd
+      BT_Master.println(Startup_Full_Reset[num_cmds_received]); // Need to print with both NL & CR hence println 
       cmd_sent = true;   // Command sent
     }
-
+    i++;
     if(cmd_sent == true){   // Only check for serial response if the command was sent
-      if(BT_Master.available()){   
+      if(BT_Master.available()){    // Parse the response from the BT device
         char inChar = BT_Master.read();  
         
-        if(inChar != '\r')
+        if(inChar != '\r' && inChar != '\n')
           read_resp += inChar;
         else{       // Received end of string
-          Serial.println(read_resp);
+          Serial.println(read_resp);  // Echo the response to terminal 
           
           if(read_resp == "OK"){  // If response was OK then AT command was successful, else need to resend the command 
             cmd_success = true;   
+            read_resp = "";       // Clear the previous response
+          }
+          else{
+            cmd_sent = false;     // TODO: Should also check which response failed and the type of error (i.e Init has a different error profile then CLASS/ROLE)
             read_resp = "";
           }
-          else
-            cmd_sent = false;     // TODO: Should also check which response failed and the type of error (i.e Init has a different error profile then CLASS/ROLE)
         }
       }
     }
 
+    // Need some more testing on the timing for the BT device 
+    delay(500); // BT module needs time to respond to command 
+    
     if(cmd_success){    // Move to next commands and clear flags if command received successfully 
       Serial.println(Startup_Full_Reset[num_cmds_received]); // Echo the command that was just sent and received
       
@@ -106,7 +113,7 @@ void BTMasterSetup(){
     }
   }
 
-  Serial.println("Init Done");
+  Serial.write("Init Done");  // Prints several OKs and then an error after init was called? Maybe there's still some left over data in the buffer
 }
 
 // Setup pinouts
@@ -119,3 +126,5 @@ void Pinout_Setup(void){
   Serial.println("Test AT commands:");
 }
 
+// TODO: Write function to display list of nearby device names, user then can select device name for BT to connect 
+// TODO: Integrate this code with any other of our IC code so ICs can directly communicate to BT device 
