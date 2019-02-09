@@ -1,6 +1,8 @@
 #include <SoftwareSerial.h>
 #include <stdbool.h>
 
+// BT startup integrated with GSR code 
+
 // Board connections
 // GND -> GND, 5V -> 5V
 // RX (HC-05) -> Pin11
@@ -25,18 +27,18 @@ AT Command procedure:
  - AT+INIT            (initialize SPP profile lib, will return error(17) if already init)
  - AT+PSWD=<pswd>     (set password if needed)
  - AT+INQM=<param1,param2,param3> (set param1 to 1, param2 = number of devices to respond to, param3 = timeout [from 1-48])
- - AT+CMODE=1         (connect to any device, set to 0 for fixed addr, set to 1 for any addr)
+ - AT+CMODE=1         (connect to any device, set to 0 for fixed addr)
  - AT+ADCN?           (display device count)
  - AT+STATE?          (determine module working state)
  - AT+INQ             (inquire for nearby bluetooth devices) (format of address is described below in RNAME command) 
  - AT+INQC            (cancel inquiry if needed)
  - AT+RNAME?<addr>    (check name of BT device) (if the BT address is AA:BB:CC:DD:EE:FF, syntax for addr is <AABB,CC,DDEEFF>)
- - AT+PAIR=<addr,timeout>     (pair to address)
  - AT+BIND=<addr>     (bind to bluetooth address)
+ - AT+PAIR=<addr>     (pair to address)
  - AT+LINK=<addr>     (link to device)
  */
 #define EnPin 9          // Drives enable pin of bluetooth module to configure the operating mode
-#define NUM_START_CMDS 10 // Defines the number of startup commands defined in our array of AT startup commands 
+#define NUM_START_CMDS 9 // Defines the number of startup commands defined in our array of AT startup commands 
 #define MAX_RESP_SIZE 15 // Defines the maximum size of the response to the AT command
 
 SoftwareSerial BT_Master(10,11);  // RX/TX
@@ -64,7 +66,6 @@ void loop() {
 
 // Function to configure the bluetooth module as the master
 // Refer to datasheets on drive for list of AT commands 
-// NOTE: Still not 100% consistent on initialization 
 void BTMasterSetup(){
   BT_Master.begin(38400); // HC-05 default speed in AT command mode
 
@@ -75,7 +76,7 @@ void BTMasterSetup(){
   String read_resp = "";
   
   String Startup_Full_Reset[] = {"AT","AT+ORGL","AT+NAME=MIST_BT_MASTER_1","AT+RMAAD","AT+CLASS=0","AT+ROLE=1",
-                                 "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1"};
+                                 "AT+RESET","AT+INIT","AT+INQM=1,20,48"};
   Serial.println("Starting initialization");
 
   int i = 0; // TODO: Remove - purely for debugging
@@ -107,7 +108,7 @@ void BTMasterSetup(){
     }
 
     // Need some more testing on the timing for the BT device 
-    delay(750); // BT module needs time to respond to command 
+    delay(500); // BT module needs time to respond to command 
     
     if(cmd_success){    // Move to next commands and clear flags if command received successfully 
       Serial.println(Startup_Full_Reset[num_cmds_received]); // Echo the command that was just sent and received
@@ -118,10 +119,7 @@ void BTMasterSetup(){
     }
   }
 
-  Serial.println("Init Done");  // Prints several OKs and then an error after init was called? Maybe there's still some left over data in the buffer. Sends 8 responses to be precise
-  delay(1000);                  // Wait a bit and try to clear any existing buffers or commands 
-  Serial.write("....");
-  BT_Master.println("AT");
+  Serial.write("Init Done");  // Prints several OKs and then an error after init was called? Maybe there's still some left over data in the buffer
 }
 
 // Setup pinouts
