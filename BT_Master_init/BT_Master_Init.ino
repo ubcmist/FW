@@ -43,23 +43,21 @@ SoftwareSerial BT_Master(10,11);  // RX/TX
 
 // Note: If key pin is pulled high it is in AT mode, else if its low then its in data mode
 
+// TODO: Write function to display list of nearby device names, user then can select device name for BT to connect 
+// TODO: Integrate this code with any other of our IC code so ICs can directly communicate to BT device 
+
 void setup() {
   Pinout_Setup();     
   BTMasterSetup();
+  PairToDevice();
 }
 
 // Main loop once connected will just send what's typed on the serial monitor to the slave device 
 void loop() {
-  // put your main code here, to run repeatedly:
-  // Read the output of the HC-05 and send to the serial monitor of the Arduino 
-  if (BT_Master.available()){
-    Serial.write(BT_Master.read());
-  }
-
-  // Read what was typed on the serial monitor of the Arduino and send to the HC-05
-  if (Serial.available()){
-    BT_Master.write(Serial.read());
-  }
+  // Your code goes here.....
+  // call BT_Master.write() or BT_Master.println() for string
+  BT_Master.println("Connected");
+  delay(500);
 }
 
 // Function to configure the bluetooth module as the master
@@ -78,13 +76,11 @@ void BTMasterSetup(){
                                  "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1"};
   Serial.println("Starting initialization");
 
-  int i = 0; // TODO: Remove - purely for debugging
   while(num_cmds_received <= NUM_START_CMDS){
     if(!cmd_sent){    // If no commands have been sent out yet, try sending a cmd
       BT_Master.println(Startup_Full_Reset[num_cmds_received]); // Need to print with both NL & CR hence println 
       cmd_sent = true;   // Command sent
     }
-    i++;
     if(cmd_sent == true){   // Only check for serial response if the command was sent
       if(BT_Master.available()){    // Parse the response from the BT device
         char inChar = BT_Master.read();  
@@ -134,5 +130,48 @@ void Pinout_Setup(void){
   Serial.println("Test AT commands:");  
 }
 
-// TODO: Write function to display list of nearby device names, user then can select device name for BT to connect 
-// TODO: Integrate this code with any other of our IC code so ICs can directly communicate to BT device 
+// Simple while loop to allow user to manually connect using AT commands to their device of choice, exits loop when connection has been made
+void PairToDevice(void){
+
+  String sent_to_serial= "";    // Track what the user is typing to the serial monitor
+  String serial_response= "";   // Track response to user command
+  char inChar;
+
+  bool LinkCmdRcvd = false;     // Flag for if the link command was sent by the user
+
+  while(1){
+    // put your main code here, to run repeatedly:
+    // Read the output of the HC-05 and send to the serial monitor of the Arduino 
+    if (BT_Master.available()){
+      char BTChar = BT_Master.read();
+      Serial.write(BTChar);
+
+      if(BTChar != 'K')
+        serial_response += "";       // Keep track of the response from the BT module 
+      else{   // OK received
+        if(LinkCmdRcvd) // Done pairing
+          break;
+        else{            // OK was received for another non-link command. Clear our character buffers 
+          serial_response = "";
+          sent_to_serial = "";
+        }       
+      }
+    }
+
+    // Read what was typed on the serial monitor of the Arduino and send to the HC-05
+    if (Serial.available()){
+      inChar = Serial.read();
+      BT_Master.write(inChar);
+      sent_to_serial += inChar;
+    }
+
+    if(inChar == '='){    // Once we reach this character we can check for the command 
+      if(sent_to_serial == "AT+LINK=")   // Check for the link command
+        LinkCmdRcvd = true;   // Set flag 
+    }
+  }
+
+  delay(500);
+  Serial.println("Device Connection Established");  // Display status on Serial terminal
+  delay(500);
+}
