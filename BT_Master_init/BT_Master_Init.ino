@@ -1,15 +1,18 @@
 #include <SoftwareSerial.h>
+#include <stdbool.h>
 
 // Board connections
 // GND -> GND, 5V -> 5V
 // RX (HC-05) -> Pin11
 // TX (HC-05) -> Pin10
 // En (HC-05) -> Pin9
-// BT module current configurations
+// BT module current configurations (refer to AT command procedure for detailed list)
 // Mode = 1 (Master)
 // Name = MIST_BT_MASTER_1
 // Addr = 98:D3:61:FD:6D:87
 
+// NOTE: Chip CANNOT connect with iOS devices 
+// For now there are some issues with with scanning for devices, though if we know the bluetooth address we should be able to connect
 /*
 AT Command procedure:
  - AT                 (check response)
@@ -45,6 +48,7 @@ void setup() {
   BTMasterSetup();
 }
 
+// Main loop once connected will just send what's typed on the serial monitor to the slave device 
 void loop() {
   // put your main code here, to run repeatedly:
   // Read the output of the HC-05 and send to the serial monitor of the Arduino 
@@ -123,7 +127,7 @@ void Pinout_Setup(void){
   pinMode(EnPin, OUTPUT);
   digitalWrite(EnPin, HIGH);  // Pull enable to high
   Serial.begin(9600);         // Baudrate TBD
-  Serial.println("Test AT commands:");
+  Serial.println("Test AT commands:");  
 }
 
 // TODO: Write function to display list of nearby device names, user then can select device name for BT to connect 
