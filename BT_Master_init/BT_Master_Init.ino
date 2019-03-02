@@ -1,15 +1,16 @@
 #include <SoftwareSerial.h>
 #include <stdbool.h>
 
-// Board connections
+// Board connections. NOTE: RX, TX and En pins can be reassigned to any other digital IO pins provided they meet the voltage requirements of the BT breakout board.
 // GND -> GND, 5V -> 5V
 // RX (HC-05) -> Pin11
 // TX (HC-05) -> Pin10
 // En (HC-05) -> Pin9
-// BT module current configurations (refer to AT command procedure for detailed list)
 // Mode = 1 (Master)
 // Name = MIST_BT_MASTER_1
 // Addr = 98:D3:61:FD:6D:87
+// Password: 1234 (by default)
+// Pins on board from left to right (left has push button) - EN -> VCC -> GND -> TX -> RX 
 
 // NOTE: Chip CANNOT connect with iOS devices 
 // For now there are some issues with with scanning for devices, though if we know the bluetooth address we should be able to connect
@@ -30,6 +31,7 @@ AT Command procedure:
  - AT+STATE?          (determine module working state)
  - AT+INQ             (inquire for nearby bluetooth devices) (format of address is described below in RNAME command) 
  - AT+INQC            (cancel inquiry if needed)
+ ======= The above commands are run automatically in BTMasterSetup(), the below the user will need to run to connect with their device========= 
  - AT+RNAME?<addr>    (check name of BT device) (if the BT address is AA:BB:CC:DD:EE:FF, syntax for addr is <AABB,CC,DDEEFF>)
  - AT+PAIR=<addr,timeout>     (pair to address)
  - AT+BIND=<addr>     (bind to bluetooth address)
@@ -47,22 +49,33 @@ SoftwareSerial BT_Master(10,11);  // RX/TX
 // TODO: Integrate this code with any other of our IC code so ICs can directly communicate to BT device 
 
 void setup() {
+  // Setup for bluetooth information
   Pinout_Setup();     
   BTMasterSetup();
   PairToDevice();
+  // Your setup goes here. **DO NOT MODIFY THE BAUD RATE FOR THE BLUETOOTH MONITOR OR CHANGE PINOUTS**
 }
 
-// Main loop once connected will just send what's typed on the serial monitor to the slave device 
+// Program will run main loop (or main sensor code) once Bluetooth connection with between the slave and master device has been established
+// and setup for the IC code is done
 void loop() {
   // Your code goes here.....
-  // call BT_Master.write() or BT_Master.println() for string
-  BT_Master.println("Connected");
-  delay(500);
+  // call BT_Master.write() or BT_Master.println() to send your data over bluetooth 
+  // Example code will send commands over terminal to BT
+
+  // Keep reading from HC-05 and send to Arduino Serial Monitor
+  if (BT_Master.available())
+    Serial.write(BT_Master.read());
+
+  // Keep reading from Arduino Serial Monitor and send to HC-05
+  if (Serial.available())
+    BT_Master.write(Serial.read());
 }
 
 // Function to configure the bluetooth module as the master
 // Refer to datasheets on drive for list of AT commands 
 // NOTE: Still not 100% consistent on initialization 
+
 void BTMasterSetup(){
   BT_Master.begin(38400); // HC-05 default speed in AT command mode
 
@@ -76,19 +89,29 @@ void BTMasterSetup(){
                                  "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1"};
   Serial.println("Starting initialization");
 
-  while(num_cmds_received <= NUM_START_CMDS){
+  delay(500); // Small delay before init
+  
+  while(1){
     if(!cmd_sent){    // If no commands have been sent out yet, try sending a cmd
+      Serial.println(Startup_Full_Reset[num_cmds_received]); // Echo the command that was just sent
+      delay(750);                                            // Give time for print command ISR to execute 
       BT_Master.println(Startup_Full_Reset[num_cmds_received]); // Need to print with both NL & CR hence println 
       cmd_sent = true;   // Command sent
     }
+
+    // BUG: Occasionally will hang and never print anything in the following look (i.e cmd sent but no resp for BT)
     if(cmd_sent == true){   // Only check for serial response if the command was sent
-      if(BT_Master.available()){    // Parse the response from the BT device
+      if(BT_Master.available()){    // Some response was received from the bluetooth, parse it
         char inChar = BT_Master.read();  
-        
-        if(inChar != '\r' && inChar != '\n')
+        Serial.write(inChar); // Echo to terminal
+       
+        if(inChar != '\r' && inChar != '\n'){
           read_resp += inChar;
+        }
         else{       // Received end of string
-          Serial.println(read_resp);  // Echo the response to terminal 
+          while(BT_Master.available()){     // Resolve and flush the incoming buffer
+            Serial.write(BT_Master.read());
+          }
           
           if(read_resp == "OK"){  // If response was OK then AT command was successful, else need to resend the command 
             cmd_success = true;   
@@ -96,28 +119,25 @@ void BTMasterSetup(){
           }
           else{
             cmd_sent = false;     // TODO: Should also check which response failed and the type of error (i.e Init has a different error profile then CLASS/ROLE)
-            read_resp = "";
+            read_resp = "";       // and re-init for example if fail
           }
         }
       }
     }
-
-    // Need some more testing on the timing for the BT device 
-    delay(750); // BT module needs time to respond to command 
     
     if(cmd_success){    // Move to next commands and clear flags if command received successfully 
-      Serial.println(Startup_Full_Reset[num_cmds_received]); // Echo the command that was just sent and received
-      
       num_cmds_received += 1;
       cmd_sent = false;
       cmd_success = false;
+ 
+      if(num_cmds_received >= NUM_START_CMDS) // All cmds have been sent
+        break;    
     }
   }
 
-  Serial.println("Init Done");  // Prints several OKs and then an error after init was called? Maybe there's still some left over data in the buffer. Sends 8 responses to be precise
+  Serial.println("Init Done");  
   delay(1000);                  // Wait a bit and try to clear any existing buffers or commands 
   Serial.write("....");
-  BT_Master.println("AT");
 }
 
 // Setup pinouts
@@ -126,35 +146,46 @@ void Pinout_Setup(void){
   pinMode(11, OUTPUT);
   pinMode(EnPin, OUTPUT);
   digitalWrite(EnPin, HIGH);  // Pull enable to high
-  Serial.begin(9600);         // Baudrate TBD
-  Serial.println("Test AT commands:");  
+  Serial.begin(9600);         // Baudrate for serial monitor 
 }
 
 // Simple while loop to allow user to manually connect using AT commands to their device of choice, exits loop when connection has been made
+// TODO: Need to account for other conditions if any of the commands fail or the wrong order is sent 
 void PairToDevice(void){
-
+  // *ISSUE: here theres an issue where the response from all the previous AT commands are echo-ed, don't think it re-sends the AT commands
+  //  however one of the responses is an error so maybe something is re-sent....
+  
   String sent_to_serial= "";    // Track what the user is typing to the serial monitor
   String serial_response= "";   // Track response to user command
   char inChar;
 
   bool LinkCmdRcvd = false;     // Flag for if the link command was sent by the user
+  bool PairCmdRcvd = false;     // Flag for if the pair command was sent by the user
+  bool BindCmdRcvd = false;     // Flag for if the bind command was sent by the user
 
-  while(1){
-    // put your main code here, to run repeatedly:
+  while(1){ // Should probably have some timer here to force exit if connection isn't happening 
     // Read the output of the HC-05 and send to the serial monitor of the Arduino 
     if (BT_Master.available()){
       char BTChar = BT_Master.read();
       Serial.write(BTChar);
+    
+      if(BTChar != '\r' && BTChar != '\n')
+        serial_response += BTChar;       // Keep track of the response from the BT module 
+      else{   // Response received
+        while(BT_Master.available())  
+          Serial.write(BT_Master.read());   // Flush the incoming buffer
 
-      if(BTChar != 'K')
-        serial_response += "";       // Keep track of the response from the BT module 
-      else{   // OK received
-        if(LinkCmdRcvd) // Done pairing
-          break;
-        else{            // OK was received for another non-link command. Clear our character buffers 
-          serial_response = "";
-          sent_to_serial = "";
-        }       
+        if(serial_response == "OK"){  // OK response
+          if(LinkCmdRcvd && PairCmdRcvd && BindCmdRcvd) // Done pairing
+            break;
+          else{            // OK was received for an intermediate. Clear our character buffers 
+            serial_response = "";
+            sent_to_serial = "";
+          }
+        }
+        else{  // Fail or error response
+          BindCmdRcvd = false;  // usually will fail on the bind command
+        }
       }
     }
 
@@ -165,9 +196,14 @@ void PairToDevice(void){
       sent_to_serial += inChar;
     }
 
-    if(inChar == '='){    // Once we reach this character we can check for the command 
+    if(inChar == '='){    // Once we reach this character we can check for the command entered by the user
+      // Better if we can also check for ordering 
       if(sent_to_serial == "AT+LINK=")   // Check for the link command
         LinkCmdRcvd = true;   // Set flag 
+      else if(sent_to_serial == "AT+PAIR=")
+        PairCmdRcvd = true;
+      else if(sent_to_serial == "AT+BIND=")
+        BindCmdRcvd = true;
     }
   }
 
