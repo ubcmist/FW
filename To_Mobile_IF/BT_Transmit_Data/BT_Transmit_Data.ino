@@ -37,7 +37,7 @@ void loop() {
 // Timer1 Interrupt Service Routine
 ISR(TIMER1_COMPA_vect){
   timer1_count += 1;                      // Counter for the ISR due to limitations in its minimum frequency 
-  //Serial.println("DEBUG: IN ISR");        // For Debug
+  Serial.println("DEBUG: IN ISR");        // For Debug
   BT_Master.println("DEBUG: IN ISR");     // For Debug
   if(timer1_count == TIMER_COUNTER_MAX){  // At the 5s timer we execute the ISR
     //BT_Master.println("SEND DATA");       // For Debug

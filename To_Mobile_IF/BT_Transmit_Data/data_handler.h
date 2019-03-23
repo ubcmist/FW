@@ -7,7 +7,7 @@
 
 // Identifiers for our various datatypes
 #define GSR_Data_ID "GSR"	// Galvanic Skin Resistance datatype
-#define HR_Data_ID "HR"	// Heart Rate datatype
+#define HR_Data_ID "HeartRate"	// Heart Rate datatype
 
 #define NUM_DATA_PER_PACKET 2 // Data processed once per 5 second, packets sent every minute
 
@@ -44,8 +44,9 @@ class Data_Handler{
     void Send_Packet(datatype_packet &packet);
 		
 		// For now keep two functions for each separate datatype in case we want to handle things differently.
-		void Append_Data_GSR(int data);
-		void Append_Data_HR(int data);
+    void Append_Data(int data, datatype_packet &packet);
+		//void Append_Data_GSR(int data);
+		//void Append_Data_HR(int data);
 };
 
 #endif 

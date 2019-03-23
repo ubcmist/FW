@@ -16,38 +16,41 @@ Data_Handler::~Data_Handler(){
 // Public function to update one of the existing data packet types with new data 
 void Data_Handler::Update_Data(int data, String data_identifier){
   //BT_Master.println("IN FUNC"); // For debug
-	if(data_identifier == "GSR"){
-			Append_Data_GSR(data);
+  // TODO: if we have a mismatching type, then we still need to fill out the data, but with an error 
+	if(data_identifier == GSR_Data_ID){
+			Append_Data(data, gsr_packet);
 	}
-	if(data_identifier == "HR"){
-      Append_Data_HR(data);
+	if(data_identifier == HR_Data_ID){
+      Append_Data(data, hr_packet);
 	}
 
 	return;
 }
 
 // Private function to append data to one of our data packets
-void Data_Handler::Append_Data_GSR(int data){
-	if (gsr_packet.current_index >= NUM_DATA_PER_PACKET)	// Overflowed. (TODO: routine to avert stack corruption)
+void Data_Handler::Append_Data(int data, datatype_packet &packet){
+	if (packet.current_index >= NUM_DATA_PER_PACKET){	// Overflowed. (TODO: routine to avert stack corruption)
+    Serial.println("Overflow Issue");     // For debug 
 		return;							// Currently just returns
-
-	gsr_packet.data[gsr_packet.current_index] = data;	// Replace data
-	
-	if(gsr_packet.current_index == (NUM_DATA_PER_PACKET - 1)){
-		gsr_packet.ok_to_send = true;				// Packet is done formatting 
 	}
-	gsr_packet.current_index += 1;
+ 
+	packet.data[packet.current_index] = data;	// Replace data
+	
+	if(packet.current_index == (NUM_DATA_PER_PACKET - 1)){
+		packet.ok_to_send = true;				// Packet is done formatting 
+	}
+	packet.current_index += 1;
 
-	gsr_packet.data_status = Format_Error_Code(GSR_Data_ID, data);
+	packet.data_status = Format_Error_Code(GSR_Data_ID, data);
 
-
-  if(gsr_packet.ok_to_send){
-    Send_Packet(gsr_packet);
+  if(packet.ok_to_send){
+    Send_Packet(packet);
   }
   
 	return;
 }
 
+/*
 void Data_Handler::Append_Data_HR(int data){
 	if (hr_packet.current_index >= NUM_DATA_PER_PACKET)	// Overflowed. (TODO: routine to avert stack corruption)
 		return;							// Currently just returns
@@ -66,7 +69,7 @@ void Data_Handler::Append_Data_HR(int data){
   }
   
 	return;
-}
+} */
 
 // Private function for data validation of received data
 // Currently just returns OKAY 
