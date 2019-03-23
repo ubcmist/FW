@@ -55,7 +55,7 @@ void BTMasterSetup(){
   String read_resp = "";
   
   String Startup_Full_Reset[] = {"AT","AT+ORGL","AT+NAME=MIST_BT_MASTER_1","AT+RMAAD","AT+CLASS=0","AT+ROLE=1",
-                                 "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1"};
+                                 "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1","AT+PAIR=9465,2D,DB573D,50","AT+BIND=9465,2D,DB573D","AT+LINK=9465,2D,DB573D"};
   Serial.println("Starting initialization");
 
   delay(500); // Small delay before init
@@ -63,7 +63,7 @@ void BTMasterSetup(){
   while(1){
     if(!cmd_sent){    // If no commands have been sent out yet, try sending a cmd
       Serial.println(Startup_Full_Reset[num_cmds_received]); // Echo the command that was just sent
-      delay(750);                                            // Give time for print command ISR to execute 
+      delay(750);                                            // Give time for print command ISR to execute (TODO: test to see how far down we can bring this time)
       BT_Master.println(Startup_Full_Reset[num_cmds_received]); // Need to print with both NL & CR hence println 
       cmd_sent = true;   // Command sent
     }
@@ -105,7 +105,7 @@ void BTMasterSetup(){
   }
 
   Serial.println("Init Done");  
-  delay(1000);                  // Wait a bit and try to clear any existing buffers or commands 
+  delay(750);                  // Wait a bit and try to clear any existing buffers or commands 
   Serial.write("....");
 }
 

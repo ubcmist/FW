@@ -14,15 +14,13 @@ Data_Handler::~Data_Handler(){
 }
 
 // Public function to update one of the existing data packet types with new data 
-void Data_Handler::Update_Data(int data, int data_identifier){
-  BT_Master.println("IN FUNC");
-	switch(data_identifier){
-		case GSR_Data_ID:
+void Data_Handler::Update_Data(int data, String data_identifier){
+  //BT_Master.println("IN FUNC"); // For debug
+	if(data_identifier == "GSR"){
 			Append_Data_GSR(data);
-			break;
-		case HR_Data_ID:
-			Append_Data_HR(data);
-		default: break;
+	}
+	if(data_identifier == "HR"){
+      Append_Data_HR(data);
 	}
 
 	return;
@@ -36,7 +34,7 @@ void Data_Handler::Append_Data_GSR(int data){
 	gsr_packet.data[gsr_packet.current_index] = data;	// Replace data
 	
 	if(gsr_packet.current_index == (NUM_DATA_PER_PACKET - 1)){
-		gsr_packet.ok_to_send = true;				// Packet is done formattin 
+		gsr_packet.ok_to_send = true;				// Packet is done formatting 
 	}
 	gsr_packet.current_index += 1;
 
@@ -72,7 +70,8 @@ void Data_Handler::Append_Data_HR(int data){
 
 // Private function for data validation of received data
 // Currently just returns OKAY 
-error_code Data_Handler::Format_Error_Code(int data_identifier, int data){
+// TODO: Actual data handling and validation 
+error_code Data_Handler::Format_Error_Code(String data_identifier, int data){
 	error_code data_status;
 
 	data_status = DATA_OKAY;
@@ -84,13 +83,12 @@ error_code Data_Handler::Format_Error_Code(int data_identifier, int data){
 void Data_Handler::Send_Packet(datatype_packet &packet){
   BT_Master.print(packet.data_identifier);
   BT_Master.print(",");
-  BT_Master.print(packet.data_status);
-  BT_Master.print(",");
+  BT_Master.print(packet.timestamp);      // Timestamp 
   for(int i = 0; i< NUM_DATA_PER_PACKET; i++){
-    BT_Master.print(packet.data[i]);
     BT_Master.print(",");
+    BT_Master.print(packet.data[i]);
   }
-  BT_Master.print("");
+  BT_Master.println("");
 
   // Reset some variables
   packet.ok_to_send = false;

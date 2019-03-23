@@ -1,7 +1,5 @@
 #include "data_handler.h"
 
-#define TIMER_COUNTER_MAX 5 // Timer1 has a minimum frequency, hence we need this 
-
 // Global variables
 volatile int timer1_count = 0;    // Timer1 counter
 Data_Handler data_handler;        // Data_Handler object
@@ -12,7 +10,7 @@ void setup() {
   // Setup for bluetooth information
   BT_Pinout_Setup();     
   BTMasterSetup();
-  PairToDevice();
+  //PairToDevice(); // currently unused, will connect to a fixed device
   // Your setup goes here. **DO NOT MODIFY THE BAUD RATE FOR THE BLUETOOTH MONITOR OR CHANGE PINOUTS**
   Init_Interrupts();
 }
@@ -38,11 +36,11 @@ void loop() {
 
 // Timer1 Interrupt Service Routine
 ISR(TIMER1_COMPA_vect){
-  timer1_count += 1;
-  Serial.println("DEBUG: IN ISR");
-  BT_Master.println("DEBUG: IN ISR");
+  timer1_count += 1;                      // Counter for the ISR due to limitations in its minimum frequency 
+  //Serial.println("DEBUG: IN ISR");        // For Debug
+  BT_Master.println("DEBUG: IN ISR");     // For Debug
   if(timer1_count == TIMER_COUNTER_MAX){  // At the 5s timer we execute the ISR
-    BT_Master.println("SEND DATA");
+    //BT_Master.println("SEND DATA");       // For Debug
     data_handler.Update_Data(test_var,GSR_Data_ID);
     data_handler.Update_Data(test_var,HR_Data_ID);
     timer1_count = 0;
