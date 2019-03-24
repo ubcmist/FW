@@ -18,10 +18,10 @@ void Data_Handler::Update_Data(int data, String data_identifier){
   //BT_Master.println("IN FUNC"); // For debug
   // TODO: if we have a mismatching type, then we still need to fill out the data, but with an error 
 	if(data_identifier == GSR_Data_ID){
-			Append_Data(data, gsr_packet);
+			Append_Data(data, this->gsr_packet);
 	}
 	if(data_identifier == HR_Data_ID){
-      Append_Data(data, hr_packet);
+      Append_Data(data, this->hr_packet);
 	}
 
 	return;
@@ -37,7 +37,8 @@ void Data_Handler::Append_Data(int data, datatype_packet &packet){
 	packet.data[packet.current_index] = data;	// Replace data
 	
 	if(packet.current_index == (NUM_DATA_PER_PACKET - 1)){
-		packet.ok_to_send = true;				// Packet is done formatting 
+		packet.ok_to_send = true;				// Packet is done formatting
+    Serial.println("Packet formatted"); 
 	}
 	packet.current_index += 1;
 

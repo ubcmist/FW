@@ -9,7 +9,7 @@
 #define GSR_Data_ID "GSR"	// Galvanic Skin Resistance datatype
 #define HR_Data_ID "HeartRate"	// Heart Rate datatype
 
-#define NUM_DATA_PER_PACKET 2 // Data processed once per 5 second, packets sent every minute
+#define NUM_DATA_PER_PACKET 6 // Data processed once per 5 second, packets sent every minute
 
 // Error Codes
 enum error_code{

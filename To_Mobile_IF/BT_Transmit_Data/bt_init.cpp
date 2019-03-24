@@ -53,9 +53,12 @@ void BTMasterSetup(){
   int num_cmds_received = 0;
 
   String read_resp = "";
+
+  // Automatically (hardcoding) connect to one particular device, this seems to work with Antoine's phone whereas manual doesn't
+  // Again need error handling in case one of the commands fail
   
   String Startup_Full_Reset[] = {"AT","AT+ORGL","AT+NAME=MIST_BT_MASTER_1","AT+RMAAD","AT+CLASS=0","AT+ROLE=1",
-                                 "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1","AT+PAIR=9465,2D,DB573D,50","AT+BIND=9465,2D,DB573D","AT+LINK=9465,2D,DB573D"};
+                                 "AT+RESET","AT+INIT","AT+INQM=1,20,48","AT+CMODE=1","AT+PAIR=7028,8B,8A2A63,50","AT+BIND=7028,8B,8A2A63","AT+LINK=7028,8B,8A2A63"};
   Serial.println("Starting initialization");
 
   delay(500); // Small delay before init
